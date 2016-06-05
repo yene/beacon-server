@@ -1,0 +1,5 @@
+BeaconUUID = "E2C56DB5-DFFB-48D2-B060-D0F5A71096E0"
+BeaconMajor = 1
+BeaconMinor = 1
+BeaconMAC = "98:7B:F3:68:78:51"
+Webhook = "http://192.168.1.16:8080"
