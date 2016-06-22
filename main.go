@@ -23,6 +23,7 @@ type Config struct {
 	Webhook     string
 	lastseen    time.Time
 	didAlarm    bool
+	HeartBeat   int
 }
 
 var config Config
@@ -97,4 +98,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	hc.OnTermina
+	hc.OnTermination(func() {
+		t.Stop()
+	})
+
+	t.Start()
+}
+
+func reportMissing() {
+	for {
+		if !config.didAlarm && time.Since(config.lastseen) > time.Second* 5 {
+			fmt.Println("iBeacon went missing, alarm the cops")
+			config.didAlarm = true
+			acc.Outlet.OutletInUse.SetValue(false)
+		}
+		time.Sleep(time.Second * 1)
+	}
+}
+
+func isBeacon(m []byte) bool {
+	var id uint16 = 0x004C
+	return len(m) == 25 && m[0] == uint8(id) && m[1] == uint8(id>>8) && m[2] == 0x02 && m[3] == 0x15
+}
