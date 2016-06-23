@@ -2,17 +2,16 @@ package main
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
-	"github.com/paypal/gatt"
-	"github.com/paypal/gatt/examples/option"
+	"github.com/currantlabs/gatt"
+	"github.com/currantlabs/gatt/examples/option"
 
 	"github.com/BurntSushi/toml"
-
-	"github.com/brutella/hc"
-	"github.com/brutella/hc/accessory"
 )
 
 type Config struct {
@@ -26,7 +25,54 @@ type Config struct {
 	HeartBeat   int
 }
 
+type Beacon struct {
+	UUID  string `json:"uuid"`
+	Major int    `json:"major"`
+	Minor int    `json:"minor"`
+	Power int    `json:"power"`
+}
+
+const httpAddr = ":8080"
+
 var config Config
+
+var foundBeacons map[string]Beacon
+
+func main() {
+	foundBeacons = make(map[string]Beacon)
+
+	if _, err := toml.DecodeFile("config.toml", &config); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	d, err := gatt.NewDevice(option.DefaultClientOptions...)
+	if err != nil {
+		log.Fatalf("Failed to open device, err: %s\n", err)
+		return
+	}
+
+	d.Handle(gatt.PeripheralDiscovered(onPeriphDiscovered))
+	d.Init(onStateChanged)
+
+	go reportMissing()
+
+	http.HandleFunc("/list.json", func(w http.ResponseWriter, r *http.Request) {
+		v := make([]Beacon, 0, len(foundBeacons))
+		for _, value := range foundBeacons {
+			v = append(v, value)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(v); err != nil {
+			panic(err)
+		}
+	})
+
+	fmt.Println("listen on", httpAddr)
+	log.Fatal(http.ListenAndServe(httpAddr, nil))
+
+}
 
 func onStateChanged(d gatt.Device, s gatt.State) {
 	fmt.Println("State:", s)
@@ -45,72 +91,18 @@ func onPeriphDiscovered(p gatt.Peripheral, a *gatt.Advertisement, rssi int) {
 		return
 	}
 
-	beaconUUID, _ := gatt.ParseUUID(config.BeaconUUID)
-	beaconS := fmt.Sprintf("%x", a.ManufacturerData[4:20])
+	beacon := parseBeacon(a.ManufacturerData)
+	foundBeacons[beacon.UUID] = beacon
 
-	if beaconUUID.String() != beaconS {
-		return
-	}
+	fmt.Println("found beacon", beacon.UUID)
 
-	config.lastseen = time.Now()
-	config.didAlarm = false
-	acc.Outlet.OutletInUse.SetValue(true)
-
-	fmt.Println("Found beacon I was searching for:")
-	fmt.Println("  uuid", beaconS)
-	fmt.Println("  major", binary.BigEndian.Uint16(a.ManufacturerData[20:22]))
-	fmt.Println("  minor", binary.BigEndian.Uint16(a.ManufacturerData[22:24]))
-	power := int8(a.ManufacturerData[24])
-	fmt.Println("  power", power)
-	fmt.Println("--------------------")
-}
-
-var acc *accessory.Outlet
-
-func main() {
-	if _, err := toml.DecodeFile("config.toml", &config); err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	d, err := gatt.NewDevice(option.DefaultClientOptions...)
-	if err != nil {
-		log.Fatalf("Failed to open device, err: %s\n", err)
-		return
-	}
-
-	// Register handlers.
-	d.Handle(gatt.PeripheralDiscovered(onPeriphDiscovered))
-	d.Init(onStateChanged)
-
-	go reportMissing()
-
-	info := accessory.Info{
-		Name: "iBeacon",
-	}
-	acc = accessory.NewOutlet(info)
-
-	acc.Outlet.OutletInUse.SetValue(false)
-
-	config := hc.Config{Pin: "00102003"}
-	t, err := hc.NewIPTransport(config, acc.Accessory)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	hc.OnTermination(func() {
-		t.Stop()
-	})
-
-	t.Start()
 }
 
 func reportMissing() {
 	for {
-		if !config.didAlarm && time.Since(config.lastseen) > time.Second* 5 {
+		if !config.didAlarm && time.Since(config.lastseen) > time.Second*5 {
 			fmt.Println("iBeacon went missing, alarm the cops")
 			config.didAlarm = true
-			acc.Outlet.OutletInUse.SetValue(false)
 		}
 		time.Sleep(time.Second * 1)
 	}
@@ -119,4 +111,13 @@ func reportMissing() {
 func isBeacon(m []byte) bool {
 	var id uint16 = 0x004C
 	return len(m) == 25 && m[0] == uint8(id) && m[1] == uint8(id>>8) && m[2] == 0x02 && m[3] == 0x15
+}
+
+func parseBeacon(m []byte) Beacon {
+	return Beacon{
+		UUID:  fmt.Sprintf("%x", m[4:20]),
+		Major: int(binary.BigEndian.Uint16(m[20:22])),
+		Minor: int(binary.BigEndian.Uint16(m[22:24])),
+		Power: int(m[24]),
+	}
 }
