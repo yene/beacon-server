@@ -3,3 +3,4 @@ BeaconMajor = 1
 BeaconMinor = 1
 BeaconMAC = "98:7B:F3:68:78:51"
 Webhook = "http://192.168.1.16:8080"
+HeartBeat = 5

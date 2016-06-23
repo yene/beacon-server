@@ -29,7 +29,7 @@ type Beacon struct {
 	UUID  string `json:"uuid"`
 	Major int    `json:"major"`
 	Minor int    `json:"minor"`
-	Power int    `json:"power"`
+	Power int8   `json:"power"`
 }
 
 const httpAddr = ":8080"
@@ -57,12 +57,16 @@ func main() {
 
 	go reportMissing()
 
+	fs := http.FileServer(http.Dir("static"))
+	http.Handle("/", fs)
+
 	http.HandleFunc("/list.json", func(w http.ResponseWriter, r *http.Request) {
 		v := make([]Beacon, 0, len(foundBeacons))
 		for _, value := range foundBeacons {
 			v = append(v, value)
 		}
 
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(v); err != nil {
 			panic(err)
@@ -118,6 +122,6 @@ func parseBeacon(m []byte) Beacon {
 		UUID:  fmt.Sprintf("%x", m[4:20]),
 		Major: int(binary.BigEndian.Uint16(m[20:22])),
 		Minor: int(binary.BigEndian.Uint16(m[22:24])),
-		Power: int(m[24]),
+		Power: int8(m[24]),
 	}
 }
