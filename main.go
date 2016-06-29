@@ -4,47 +4,44 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
-	"github.com/currantlabs/gatt"
-	"github.com/currantlabs/gatt/examples/option"
-
-	"github.com/BurntSushi/toml"
+	"github.com/yene/gatt"
+	"github.com/yene/gatt/examples/option"
 )
 
-type Config struct {
-	BeaconUUID  string
-	BeaconMajor int
-	BeaconMinor int
-	BeaconMAC   string
-	Webhook     string
-	lastseen    time.Time
-	didAlarm    bool
-	HeartBeat   int
+type Rules struct {
+	BeaconUUID   string `json:"uuid"`
+	BeaconMajor  string `json:"major"`
+	BeaconMinor  string `json:"minor"`
+	WebhookEnter string `json:"enter"`
+	WebhookLeave string `json:"leave"`
 }
 
 type Beacon struct {
-	UUID  string `json:"uuid"`
-	Major int    `json:"major"`
-	Minor int    `json:"minor"`
-	Power int8   `json:"power"`
+	UUID     string    `json:"uuid"`
+	Major    int       `json:"major"`
+	Minor    int       `json:"minor"`
+	Power    int8      `json:"power"`
+	LastSeen time.Time `json:"-"`
 }
 
 const httpAddr = ":8080"
+const heartBeat = time.Second * 5 // Apple advertising interval is 100ms, others use up to 1000ms
+const didEnter = true
+const didLeave = false
 
-var config Config
+var rules []Rules
 
-var foundBeacons map[string]Beacon
+var foundBeacons []Beacon
 
 func main() {
-	foundBeacons = make(map[string]Beacon)
-
-	if _, err := toml.DecodeFile("config.toml", &config); err != nil {
-		fmt.Println(err)
-		return
-	}
+	foundBeacons = make([]Beacon, 0)
+	loadRules()
 
 	d, err := gatt.NewDevice(option.DefaultClientOptions...)
 	if err != nil {
@@ -55,21 +52,35 @@ func main() {
 	d.Handle(gatt.PeripheralDiscovered(onPeriphDiscovered))
 	d.Init(onStateChanged)
 
-	go reportMissing()
+	go checkForMissingBeacon()
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/", fs)
 
-	http.HandleFunc("/list.json", func(w http.ResponseWriter, r *http.Request) {
-		v := make([]Beacon, 0, len(foundBeacons))
-		for _, value := range foundBeacons {
-			v = append(v, value)
-		}
+	http.HandleFunc("/rules.json", func(w http.ResponseWriter, r *http.Request) {
 
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if r.Method == "POST" {
+			decoder := json.NewDecoder(r.Body)
+			err := decoder.Decode(&rules)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			writeRules()
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(rules); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		}
+	})
+
+	http.HandleFunc("/list.json", func(w http.ResponseWriter, r *http.Request) {
+		//v = append(v, Beacon{"e2c56db5dffb48d2b060d0f5a71096e0", 1, 0, -50, time.Now()})
+		//w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(v); err != nil {
-			panic(err)
+		if err := json.NewEncoder(w).Encode(foundBeacons); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
 
@@ -96,17 +107,24 @@ func onPeriphDiscovered(p gatt.Peripheral, a *gatt.Advertisement, rssi int) {
 	}
 
 	beacon := parseBeacon(a.ManufacturerData)
-	foundBeacons[beacon.UUID] = beacon
-
-	fmt.Println("found beacon", beacon.UUID)
-
+	if beaconExists(beacon.UUID, beacon.Major, beacon.Minor) {
+		updateBeacon(beacon.UUID, beacon.Major, beacon.Minor)
+	} else {
+		foundBeacons = append(foundBeacons, beacon)
+		runRulesFor(beacon, didEnter)
+		fmt.Println("Beacon", beacon.UUID, beacon.Major, beacon.Minor, "did enter")
+	}
 }
 
-func reportMissing() {
+func checkForMissingBeacon() {
 	for {
-		if !config.didAlarm && time.Since(config.lastseen) > time.Second*5 {
-			fmt.Println("iBeacon went missing, alarm the cops")
-			config.didAlarm = true
+		for i := len(foundBeacons) - 1; i >= 0; i-- {
+			b := foundBeacons[i]
+			if time.Since(b.LastSeen) > heartBeat {
+				runRulesFor(b, didLeave)
+				fmt.Println("Beacon", b.UUID, b.Major, b.Minor, "did leave")
+				foundBeacons = append(foundBeacons[:i], foundBeacons[i+1:]...)
+			}
 		}
 		time.Sleep(time.Second * 1)
 	}
@@ -119,9 +137,84 @@ func isBeacon(m []byte) bool {
 
 func parseBeacon(m []byte) Beacon {
 	return Beacon{
-		UUID:  fmt.Sprintf("%x", m[4:20]),
-		Major: int(binary.BigEndian.Uint16(m[20:22])),
-		Minor: int(binary.BigEndian.Uint16(m[22:24])),
-		Power: int8(m[24]),
+		UUID:     fmt.Sprintf("%x", m[4:20]),
+		Major:    int(binary.BigEndian.Uint16(m[20:22])),
+		Minor:    int(binary.BigEndian.Uint16(m[22:24])),
+		Power:    int8(m[24]),
+		LastSeen: time.Now(),
+	}
+}
+
+func loadRules() {
+	file, _ := ioutil.ReadFile("rules.json")
+	if err := json.Unmarshal(file, &rules); err != nil {
+		panic(err)
+	}
+}
+
+func writeRules() {
+	data, err := json.Marshal(rules)
+	if err != nil {
+		panic(err)
+	}
+	err = ioutil.WriteFile("rules.json", data, 0644)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func requestURL(url string) {
+	response, err := http.Get(url)
+	if err != nil {
+		fmt.Println(err)
+	}
+	if response.StatusCode != http.StatusOK {
+		fmt.Println("response Status:", response.Status)
+	}
+}
+
+func beaconExists(uuid string, major int, minor int) bool {
+	for _, b := range foundBeacons {
+		if b.UUID == uuid && b.Major == major && b.Minor == minor {
+			return true
+		}
+	}
+	return false
+}
+
+func updateBeacon(uuid string, major int, minor int) {
+	for i, b := range foundBeacons {
+		if b.UUID == uuid && b.Major == major && b.Minor == minor {
+			ub := b
+			ub.LastSeen = time.Now()
+			foundBeacons[i] = ub
+		}
+	}
+}
+
+func runRulesFor(b Beacon, enter bool) {
+	for _, r := range rules {
+		if r.BeaconUUID != b.UUID {
+			continue
+		}
+
+		if r.BeaconMajor != "*" {
+			if r.BeaconMajor != strconv.Itoa(b.Major) {
+				continue
+			}
+		}
+
+		if r.BeaconMinor != "*" {
+			if r.BeaconMinor != strconv.Itoa(b.Minor) {
+				continue
+			}
+		}
+
+		if enter {
+			requestURL(r.WebhookEnter)
+		} else {
+			requestURL(r.WebhookLeave)
+		}
+
 	}
 }

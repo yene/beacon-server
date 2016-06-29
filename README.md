@@ -1,21 +1,24 @@
-# beacon-discover
+# Beacon Server
+Checks if the given iBeacon is in range and calls webhooks like IFTTT when a beacon enters or leaves the area.
 
-Check if the given iBeacon is in range. Fake a HomeKit outlet that is plugged in when the iBeacon is in reach. Allows you to setup rules like: "When iBeacon discovered unlock the door."
-
-Program needs to be run as root, tested on Raspberry PI 3.
-
+![screenshot](screenshot.png)
 ![hardware](hardware.jpg)
 
-![beacon found](found.png)
-![beacon not found](notfound.png)
+## install
+Tested only Raspberry PI 3.
+1. `go get github.com/yene/beacon-server`
+2. `sudo beacon-server`
+3. `http://site:8080`
 
 ## TODO
-- [ ] Whats a good scan interval, how often do beacons send.
-- [ ] why does it not take my UUID?
-- [ ] how to check minor and major 
-- [X] heartbeat for iBeacon
-- [X] interface to HomeKit
+- [X] example with homekit
 - [ ] add a fix for wellcore manufacturer data
+- [ ] add test for the wellcore beacon to gatt
+- [ ] research for what the byte was
+- [ ] add advertising interval to settings
+- [ ] add stylish polymer buttons and cleanup ui
+- [ ] format beacons uuid in interface
+- [ ] form validate
 
 ## Wellcore iBeacon
 Had an [issue with paypal/gatt](https://github.com/paypal/gatt/issues/74) not handling the scan response of the iBeaon.
@@ -27,7 +30,16 @@ Minor: 0
 [2 1 4 0 81 120 104 243 123 152 16 2 10 0 4 22 83 81 67 7 255 0 0 0 84 0 0 186]
 ```
 
+## Polymer
+`cd static && polymer build`
 
 ## Notes
 * https://github.com/mlwelles/BeaconScanner#how-it-works
 * [Gatt](https://github.com/paypal/gatt)
+* [toml](https://github.com/toml-lang/toml)
+
+
+## License
+[MIT](https://tldrlegal.com/license/mit-license)
+
+

@@ -1,0 +1,131 @@
+
+
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/iron-ajax/iron-ajax.html">
+
+<dom-module id="my-configure">
+
+  <template>
+
+    <style>
+      :host {
+        display: block;
+        padding: 10px;
+      }
+      .card {
+        box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 1px 5px 0 rgba(0, 0, 0, 0.12), 0 3px 1px -2px rgba(0, 0, 0, 0.2);
+        padding: 16px;
+        margin: 24px;
+        border-radius: 5px;
+        background-color: #fff;
+        color: #757575;
+      }
+      .circle {
+        display: inline-block;
+        height: 64px;
+        width: 64px;
+        border-radius: 50%;
+        background: #ddd;
+        line-height: 64px;
+        font-size: 30px;
+        color: #555;
+        text-align: center;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 16px 0;
+        color: #212121;
+      }
+      .beaconConfig + .beaconConfig {
+        border-top: 1px solid rgba(33, 33, 33, 0.5);
+        padding-top: 2px;
+        margin-top: 2px;
+      }
+    </style>
+
+    <div class="card">
+      <h1>Detected Beacons</h1>
+      <iron-ajax auto url="/list.json" handle-as="json" last-response="{{detected}}"></iron-ajax>
+      <template is="dom-repeat" items="{{detected}}">
+        <div>
+        #<span>{{index}}</span> <span>{{item.uuid}}</span> <span>{{item.major}}</span> <span>{{item.minor}}</span>
+        <button on-click="configure">Add Beacon</button>
+        </div>
+      </template>
+    </div>
+
+    <div class="card">
+      <h1>Configured Rules</h1>
+      <p>Use * as wildcard to match all major or minor. Best used with <a href="https://ifttt.com/maker">IFTTT Webhooks</a>.</p>
+      <form id="myForm" name="myForm">
+      <iron-ajax auto url="/rules.json" handle-as="json" last-response="{{configured}}"></iron-ajax>
+      <template is="dom-repeat" items="{{configured}}">
+        <div class="beaconConfig">
+          <div>
+            <label for="uuid{{index}}">UUID:</label>
+            <input type="text" id="uuid{{index}}" name="uuid" value="{{item.uuid::change}}" size="40" required>
+            <label for="major{{index}}">Major:</label>
+            <input type="text" id="major{{index}}" name="major" value="{{item.major::change}}" maxlength="1" size="1" required>
+            <label for="minor{{index}}">Minor:</label>
+            <input type="text" id="minor{{index}}" name="minor" value="{{item.minor::change}}" maxlength="1" size="1" required>
+          </div>
+          <div>
+            <label for="enter{{index}}">Webhook Enter:</label>
+            <input type="url" pattern="https?://.+" id="enter{{index}}" name="enter" value="{{item.enter::change}}" size="60">
+          </div>
+          <div>
+            <label for="leave{{index}}">Webhook Leave:</label>
+            <input type="url" pattern="https?://.+" id="leave{{index}}" name="leave" value="{{item.leave::change}}" size="60">
+          </div>
+        </div>
+        <button on-click="removeRule">Remove this rule</button>
+      </template>
+      <br>
+      <input type="submit" value="Save All" on-click="sendForm">
+      </form>
+    </div>
+
+  </template>
+
+  <script>
+
+    Polymer({
+      is: 'my-configure',
+      properties: {
+        configured: {
+          type: Array,
+          notify: true,
+          value: function(){return []}
+        }
+      },
+      ready: function() {
+      },
+      configure: function(e) {
+        var model = e.model;
+        this.push('configured', {uuid: model.item.uuid, major:model.item.major.toString(), minor: model.item.minor.toString(),
+          enter: "https://maker.ifttt.com/trigger/{event}/with/key/{secret}",
+          leave: "https://maker.ifttt.com/trigger/{event}/with/key/{secret}"})
+      },
+      removeRule: function(e) {
+        var model = e.model;
+        var index = this.configured.indexOf(model.item)
+        this.splice('configured', index, 1)
+      },
+      sendForm: function(e) {
+        e.preventDefault();
+        // TODO: form validation, with browser api
+        var url = '/rules.json'
+        var request = new XMLHttpRequest();
+        request.open('POST', url, false);
+        request.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        request.send(JSON.stringify(this.configured, null, 2));
+      }
+    });
+
+    function formatBeacon(s) {
+      return s.substr(0, 8) + '-' + s.substr(8, 4) + '-' + s.substr(12, 4) + '-' + s.substr(16, 4) + '-' + s.substr(20);
+    }
+
+  </script>
+
+</dom-module>
