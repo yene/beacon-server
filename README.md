@@ -2,10 +2,10 @@
 Checks if the given iBeacon is in range and calls webhooks like IFTTT when a beacon enters or leaves the area.
 
 ![screenshot](screenshot.png)
-![hardware](hardware.jpg)
 
 ## install
 Tested only Raspberry PI 3.
+
 1. `go get github.com/yene/beacon-server`
 2. `sudo beacon-server`
 3. `http://site:8080`
