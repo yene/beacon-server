@@ -54,8 +54,7 @@ func main() {
 
 	go checkForMissingBeacon()
 
-	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/", fs)
+	http.Handle("/", http.FileServer(assetFS()))
 
 	http.HandleFunc("/rules.json", func(w http.ResponseWriter, r *http.Request) {
 
@@ -146,7 +145,15 @@ func parseBeacon(m []byte) Beacon {
 }
 
 func loadRules() {
-	file, _ := ioutil.ReadFile("rules.json")
+	file, err := ioutil.ReadFile("rules.json")
+
+	if err != nil {
+		rules = make([]Rules, 0)
+		fmt.Println("No \"rules.json\" found, creating empty.")
+		writeRules()
+		return
+	}
+
 	if err := json.Unmarshal(file, &rules); err != nil {
 		panic(err)
 	}

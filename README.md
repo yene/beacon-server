@@ -1,5 +1,5 @@
 # Beacon Server
-Checks if the given iBeacon is in range and calls webhooks like IFTTT when a beacon enters or leaves the area.
+Checks if the given iBeacon is in range. Calls webhooks (eg IFTTT) when a beacon enters or leaves the area.
 
 ![screenshot](screenshot.png)
 
@@ -19,6 +19,7 @@ Tested only Raspberry PI 3.
 - [ ] add stylish polymer buttons and cleanup ui
 - [ ] format beacons uuid in interface
 - [ ] form validate
+- [ ] fix data races
 
 ## Wellcore iBeacon
 Had an [issue with paypal/gatt](https://github.com/paypal/gatt/issues/74) not handling the scan response of the iBeaon.
@@ -30,8 +31,19 @@ Minor: 0
 [2 1 4 0 81 120 104 243 123 152 16 2 10 0 4 22 83 81 67 7 255 0 0 0 84 0 0 186]
 ```
 
-## Polymer
-`cd static && polymer build`
+
+## how to build
+Install dependencies:
+```bash
+go get github.com/jteeuwen/go-bindata/...
+go get github.com/elazarl/go-bindata-assetfs/...
+```
+
+Run build.sh:
+```bash
+sh ./build.sh
+```
+
 
 ## Notes
 * https://github.com/mlwelles/BeaconScanner#how-it-works
