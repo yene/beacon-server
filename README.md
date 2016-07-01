@@ -12,6 +12,8 @@ Tested only Raspberry PI 3.
 
 ## TODO
 - [X] example with homekit
+- [X] move port into flag
+- [ ] dont start server with no bluetooth possible (check state PoweredOff)
 - [ ] add a fix for wellcore manufacturer data
 - [ ] add test for the wellcore beacon to gatt
 - [ ] research for what the byte was

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -30,16 +31,16 @@ type Beacon struct {
 	LastSeen time.Time `json:"-"`
 }
 
-const httpAddr = ":8080"
 const heartBeat = time.Second * 5 // Apple advertising interval is 100ms, others use up to 1000ms
 const didEnter = true
 const didLeave = false
 
 var rules []Rules
-
 var foundBeacons []Beacon
+var httpAddr = flag.String("string", ":8080", "Server Address")
 
 func main() {
+	flag.Parse()
 	foundBeacons = make([]Beacon, 0)
 	loadRules()
 
@@ -83,9 +84,9 @@ func main() {
 		}
 	})
 
-	fmt.Println("listen on", httpAddr)
-	log.Fatal(http.ListenAndServe(httpAddr, nil))
-
+	fmt.Println("listen on", *httpAddr)
+	fmt.Println("(change the port with --addr \":8000\")")
+	log.Fatal(http.ListenAndServe(*httpAddr, nil))
 }
 
 func onStateChanged(d gatt.Device, s gatt.State) {
