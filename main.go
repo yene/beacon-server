@@ -34,10 +34,12 @@ type Beacon struct {
 const heartBeat = time.Second * 5 // Apple advertising interval is 100ms, others use up to 1000ms
 const didEnter = true
 const didLeave = false
+const defaultPort = ":8080"
 
 var rules []Rules
 var foundBeacons []Beacon
-var httpAddr = flag.String("string", ":8080", "Server Address")
+var httpAddr = flag.String("addr", defaultPort, "The Web UI address.")
+var noweb = flag.Bool("disable", false, "Turn web UI off.")
 
 func main() {
 	flag.Parse()
@@ -84,9 +86,14 @@ func main() {
 		}
 	})
 
-	fmt.Println("listen on", *httpAddr)
-	fmt.Println("(change the port with --addr \":8000\")")
-	log.Fatal(http.ListenAndServe(*httpAddr, nil))
+	if !*noweb {
+		fmt.Println("listen on", *httpAddr)
+		if *httpAddr == defaultPort {
+			fmt.Println("You can change the port by adding \"-addr :8000\"")
+		}
+		log.Fatal(http.ListenAndServe(*httpAddr, nil))
+	}
+	select {}
 }
 
 func onStateChanged(d gatt.Device, s gatt.State) {
