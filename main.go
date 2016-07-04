@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -35,14 +36,24 @@ const didEnter = true
 const didLeave = false
 const defaultPort = ":8080"
 
+var version string
+
 var rules []Rules
 var foundBeacons []Beacon
 var httpAddr = flag.String("addr", defaultPort, "The Web UI address.")
 var noweb = flag.Bool("disable", false, "Turn web UI off.")
 var interval = flag.Int("interval", 10, "Advertising interval of the beacons, in seconds.")
+var printVersion = flag.Bool("version", false, "Print current version.")
 
 func main() {
 	flag.Parse()
+
+	if *printVersion {
+		// Compile with `go build -ldflags "-X main.version=0.9.2"`
+		fmt.Println("Version:", version)
+		os.Exit(0)
+	}
+
 	foundBeacons = make([]Beacon, 0)
 	loadRules()
 
