@@ -3,12 +3,7 @@ Checks if the given iBeacon is in range. Calls webhooks (eg IFTTT) when a beacon
 
 ![screenshot](screenshot.png)
 
-## install
-Tested only Raspberry PI 3.
-
-1. `go get github.com/yene/beacon-server`
-2. `sudo beacon-server`
-3. `http://site:8080`
+Tested only Raspberry PI 3 and OS X. [Download Release](https://github.com/yene/beacon-server/releases/latest)
 
 ## macOS
 On macOS the interval in which beacons are reported is weird, I have seen up to 25 seconds.
