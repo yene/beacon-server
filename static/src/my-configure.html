@@ -45,10 +45,10 @@
 
     <div class="card">
       <h1>Detected Beacons</h1>
-      <iron-ajax auto url="/list.json" handle-as="json" last-response="{{detected}}"></iron-ajax>
+      <iron-ajax id="beaconList" auto url="/list.json" handle-as="json" last-response="{{detected}}" on-response="refresh"></iron-ajax>
       <template is="dom-repeat" items="{{detected}}">
         <div>
-        #<span>{{index}}</span> <span>{{item.uuid}}</span> <span>{{item.major}}</span> <span>{{item.minor}}</span>
+        <span>UUID: {{formatBeacon(item.uuid)}}</span> <span>Major: {{item.major}}</span> <span>Minor: {{item.minor}}</span>
         <button on-click="configure">Add Beacon</button>
         </div>
       </template>
@@ -100,6 +100,11 @@
       },
       ready: function() {
       },
+      refresh: function() {
+        this.async(function() {
+          this.$.beaconList.generateRequest();
+        }, 2000);
+      },
       configure: function(e) {
         var model = e.model;
         this.push('configured', {uuid: model.item.uuid, major:model.item.major.toString(), minor: model.item.minor.toString(),
@@ -119,12 +124,12 @@
         request.open('POST', url, false);
         request.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         request.send(JSON.stringify(this.configured, null, 2));
+      },
+      formatBeacon: function(s) {
+        var b = s.substr(0, 8) + '-' + s.substr(8, 4) + '-' + s.substr(12, 4) + '-' + s.substr(16, 4) + '-' + s.substr(20);
+        return b.toUpperCase();
       }
     });
-
-    function formatBeacon(s) {
-      return s.substr(0, 8) + '-' + s.substr(8, 4) + '-' + s.substr(12, 4) + '-' + s.substr(16, 4) + '-' + s.substr(20);
-    }
 
   </script>
 
