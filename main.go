@@ -42,14 +42,13 @@ var rules []Rules
 var foundBeacons []Beacon
 var httpAddr = flag.String("addr", defaultPort, "The Web UI address.")
 var noweb = flag.Bool("disable", false, "Turn web UI off.")
-var interval = flag.Int("interval", 10, "Advertising interval of the beacons, in seconds.")
+var interval = flag.Int("interval", 5, "Advertising interval of the beacons, in seconds.")
 var printVersion = flag.Bool("version", false, "Print current version.")
 
 func main() {
 	flag.Parse()
 
 	if *printVersion {
-		// Compile with `go build -ldflags "-X main.version=0.9.2"`
 		fmt.Println("Version:", version)
 		os.Exit(0)
 	}
@@ -116,7 +115,8 @@ func onStateChanged(d gatt.Device, s gatt.State) {
 		return
 	default:
 		d.StopScanning()
-		log.Fatal("Could not scan for BLE devices, check that your hardware is supported and turned on.")
+		fmt.Println("Could not scan for BLE devices, check that your hardware is supported and turned on.")
+		os.Exit(0)
 	}
 }
 

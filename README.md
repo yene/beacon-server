@@ -1,26 +1,19 @@
 # Beacon Server
-Checks if the given iBeacon is in range. Calls webhooks (eg IFTTT) when a beacon enters or leaves the area.
+Checks if the given iBeacon is in range. Calls webhooks (eg IFTTT) when a beacon enters or leaves the area. Tested with Raspberry Pi 3 and OS X. [Download](https://github.com/yene/beacon-server/releases/latest)
 
 ![screenshot](screenshot.png)
-
-Tested only Raspberry PI 3 and OS X. [Download Release](https://github.com/yene/beacon-server/releases/latest)
 
 ## macOS
 On macOS the interval in which beacons are reported is weird, I have seen up to 25 seconds.
 You can change it by adding `-interval 25`.
 
 ## TODO
-- [X] example with homekit
-- [X] move port into flag
-- [ ] dont start server with no bluetooth possible (check state PoweredOff)
-- [ ] add a fix for wellcore manufacturer data
-- [ ] add test for the wellcore beacon to gatt
-- [ ] research for what the byte was
-- [ ] add advertising interval to settings
+- [ ] add test for the wellcore beacon to [Gatt](https://github.com/yene/gatt)
+- [ ] research for what the byte was (read their SDK)
 - [ ] add stylish polymer buttons and cleanup ui
-- [ ] format beacons uuid in interface
+- [ ] format beacons UUID in interface
 - [ ] form validate
-- [ ] fix data races
+- [ ] fix data races 
 
 ## Wellcore iBeacon
 Had an [issue with paypal/gatt](https://github.com/paypal/gatt/issues/74) not handling the scan response of the iBeaon.
@@ -33,24 +26,22 @@ Minor: 0
 ```
 
 
-## how to build
+## How to Build
 Install dependencies:
 ```bash
 go get github.com/jteeuwen/go-bindata/...
 go get github.com/elazarl/go-bindata-assetfs/...
 ```
 
-Run build.sh:
+generate assets:
 ```bash
-sh ./build.sh
+sh ./build-assets.sh
 ```
 
-
-## Notes
-* https://github.com/mlwelles/BeaconScanner#how-it-works
-* [Gatt](https://github.com/paypal/gatt)
-* [toml](https://github.com/toml-lang/toml)
-
+compile go with version:
+```bash
+go build -ldflags "-X main.version=v0.9.2"
+```
 
 ## License
 [MIT](https://tldrlegal.com/license/mit-license)
