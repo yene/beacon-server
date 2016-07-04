@@ -31,7 +31,6 @@ type Beacon struct {
 	LastSeen time.Time `json:"-"`
 }
 
-const heartBeat = time.Second * 5 // Apple advertising interval is 100ms, others use up to 1000ms
 const didEnter = true
 const didLeave = false
 const defaultPort = ":8080"
@@ -40,6 +39,7 @@ var rules []Rules
 var foundBeacons []Beacon
 var httpAddr = flag.String("addr", defaultPort, "The Web UI address.")
 var noweb = flag.Bool("disable", false, "Turn web UI off.")
+var interval = flag.Int("interval", 10, "Advertising interval of the beacons, in seconds.")
 
 func main() {
 	flag.Parse()
@@ -87,7 +87,7 @@ func main() {
 	})
 
 	if !*noweb {
-		fmt.Println("listen on", *httpAddr)
+		fmt.Println("Web UI is running on", *httpAddr)
 		if *httpAddr == defaultPort {
 			fmt.Println("You can change the port by adding \"-addr :8000\"")
 		}
@@ -105,6 +105,7 @@ func onStateChanged(d gatt.Device, s gatt.State) {
 		return
 	default:
 		d.StopScanning()
+		log.Fatal("Could not scan for BLE devices, check that your hardware is supported and turned on.")
 	}
 }
 
@@ -127,7 +128,7 @@ func checkForMissingBeacon() {
 	for {
 		for i := len(foundBeacons) - 1; i >= 0; i-- {
 			b := foundBeacons[i]
-			if time.Since(b.LastSeen) > heartBeat {
+			if time.Since(b.LastSeen) > time.Duration(*interval)*time.Second {
 				runRulesFor(b, didLeave)
 				fmt.Println("Beacon", b.UUID, b.Major, b.Minor, "did leave")
 				foundBeacons = append(foundBeacons[:i], foundBeacons[i+1:]...)

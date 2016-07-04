@@ -10,6 +10,10 @@ Tested only Raspberry PI 3.
 2. `sudo beacon-server`
 3. `http://site:8080`
 
+## macOS
+On macOS the interval in which beacons are reported is weird, I have seen up to 25 seconds.
+You can change it by adding `-interval 25`.
+
 ## TODO
 - [X] example with homekit
 - [X] move port into flag
